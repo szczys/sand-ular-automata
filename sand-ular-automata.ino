@@ -15,6 +15,7 @@
 #include <Wire.h>
 //#include "SSD1306.h"
 #include "SH1106Wire.h"
+#include "hourglass.h"
 
 
 #define GRAINSWIDE  64 //GRAINSWIDE must be divisible by 8
@@ -77,7 +78,7 @@ struct Sand s1 = {12,12};
 
 void clearBuff(void) {
   for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) {
-    buff[i] = 0;
+    buff[i] = hourglass[i];
     lastbuff[i] = 0;
   }
 }
@@ -87,7 +88,7 @@ void showBuf(uint16_t xoffset, uint16_t yoffset) {
   display.drawFastImage(xoffset, yoffset, GRAINSWIDE, GRAINSDEEP, buff);
 }
 
-uint8_t getSand(uint16_t x, uint16_t y) {
+uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
   uint16_t byteIdx = y*(GRAINSDEEP/8);
   uint16_t byteOffset = x/8;
   uint16_t byteLoc = x%8;
@@ -98,7 +99,7 @@ uint8_t getSand(uint16_t x, uint16_t y) {
   uint16_t byteOffset = (y/8);
   uint16_t byteLoc = y%8;
   */
-  if (lastbuff[byteIdx+byteOffset] & (1<<byteLoc)) return 1;
+  if (framebuffer[byteIdx+byteOffset] & (1<<byteLoc)) return 1;
   else return 0;  
 }
 
@@ -134,10 +135,11 @@ void moveSand(void) {
   for (uint16_t row=0; row<GRAINSDEEP; row++) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
       //Check if we should be dropping this grain
-      if (getSand(col,row) && (row < (GRAINSDEEP-1))) {
-        if (getSand(col,row+1) == 0) { setSand(col,row,0); setSand(col,row+1,1); continue; }
-        if (col > 0) { if (getSand(col-1,row+1) == 0) { setSand(col,row,0); setSand(col-1,row+1,1); continue; } }
-        if (col < (GRAINSWIDE-1)) { if (getSand(col+1,row+1) == 0) { setSand(col,row,0); setSand(col+1,row+1,1); } }
+      if (getSand(col,row, hourglass)) continue;
+      if (getSand(col,row, lastbuff) && (row < (GRAINSDEEP-1))) {
+        if (getSand(col,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col,row+1,1); continue; }
+        if (col > 0) { if (getSand(col-1,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col-1,row+1,1); continue; } }
+        if (col < (GRAINSWIDE-1)) { if (getSand(col+1,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col+1,row+1,1); } }
       }
     }
   }
@@ -149,14 +151,6 @@ void setup() {
   pinMode(led, OUTPUT);
 
   clearBuff();
-
-  setSand(0,0,1);
-  setSand(0,31,1);
-  setSand(31,0,1);
-  setSand(16,6,1);
-  setSand(16,8,1);
-  setSand(16,10,1);
-
   
   display.init();
   display.drawString(0, 0, "Hello Sandular");
@@ -174,7 +168,7 @@ void loop() {
   static int nexttime = millis();
   static int nextframe = millis() + 10;
   if (millis() > nexttime) {
-    setSand(16,0,1);    
+    setSand(32,0,1);    
     showBuf(64,0);
     
     //display.clearPixel(s1.x, s1.y);
