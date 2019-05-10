@@ -26,6 +26,7 @@ int led = 2;
 
 uint8_t buff[(GRAINSWIDE/8)*GRAINSDEEP];
 uint8_t lastbuff[(GRAINSWIDE/8)*GRAINSDEEP];
+uint8_t toggle;
 /*
 uint8_t buff[32*4] = {
   0b11111111, 0b00000000, 0b00000000, 0b00000000,
@@ -172,12 +173,25 @@ void moveSand(void) {
         if ((getSand(col,row+1, buff) == 0) && (notTouchingGlass(col,row+1))) {
           setSand(col,row,0); setSand(col,row+1,1); continue;
         }
-        else if ((col > 0) && (getSand(col-1,row+1, buff) == 0) && (notTouchingGlass(col-1,row+1))) {
-          setSand(col,row,0); setSand(col-1,row+1,1); continue;
-        }
+        //Toggle alternates directions checked first, otherwise operations are the same
+        if (toggle) {
+          toggle=0;
+          if ((col > 0) && (getSand(col-1,row+1, buff) == 0) && (notTouchingGlass(col-1,row+1))) {
+            setSand(col,row,0); setSand(col-1,row+1,1); continue;
+          }
           
-        else if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, buff) == 0) && (notTouchingGlass(col+1,row+1))) {
-          setSand(col,row,0); setSand(col+1,row+1,1);
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, buff) == 0) && (notTouchingGlass(col+1,row+1))) {
+            setSand(col,row,0); setSand(col+1,row+1,1);
+          }
+        }
+        else {
+          ++toggle;       
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, buff) == 0) && (notTouchingGlass(col+1,row+1))) {
+            setSand(col,row,0); setSand(col+1,row+1,1);
+          }
+          if ((col > 0) && (getSand(col-1,row+1, buff) == 0) && (notTouchingGlass(col-1,row+1))) {
+            setSand(col,row,0); setSand(col-1,row+1,1); continue;
+          }
         }
       }
     }
@@ -197,12 +211,24 @@ void reverseSand(void) {
         if ((getSand(col,row-1, buff) == 0) && (notTouchingGlass(col,row-1))) {
           setSand(col,row,0); setSand(col,row-1,1); continue;
         }
-        
-        else if ((col > 0) && (getSand(col-1,row-1, buff) == 0) && (notTouchingGlass(col-1,row-1))){
-          setSand(col,row,0); setSand(col-1,row-1,1); continue;
+        //Toggle alternates directions checked first, otherwise operations are the same
+        if (toggle) {
+          toggle = 0;
+          if ((col > 0) && (getSand(col-1,row-1, buff) == 0) && (notTouchingGlass(col-1,row-1))){
+            setSand(col,row,0); setSand(col-1,row-1,1); continue;
+          }
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, buff) == 0) && (notTouchingGlass(col+1,row-1))) {
+            setSand(col,row,0); setSand(col+1,row-1,1);
+          }
         }
-        else if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, buff) == 0) && (notTouchingGlass(col+1,row-1))) {
-          setSand(col,row,0); setSand(col+1,row-1,1);
+        else {
+          ++toggle;
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, buff) == 0) && (notTouchingGlass(col+1,row-1))) {
+            setSand(col,row,0); setSand(col+1,row-1,1);
+          }
+          if ((col > 0) && (getSand(col-1,row-1, buff) == 0) && (notTouchingGlass(col-1,row-1))){
+            setSand(col,row,0); setSand(col-1,row-1,1); continue;
+          }
         }
       }
     }
@@ -213,7 +239,7 @@ void reverseSand(void) {
 void setup() {                
   // initialize the digital pin as an output.
   pinMode(led, OUTPUT);
-
+  toggle = 0;
   clearBuff();
 
   /*
