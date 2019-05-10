@@ -135,11 +135,29 @@ void moveSand(void) {
   for (uint16_t row=0; row<GRAINSDEEP; row++) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, hourglass)) continue;
+      if (getSand(col,row, hourglass)) continue;  //Don't move cells that make up the hourglass itself
       if (getSand(col,row, lastbuff) && (row < (GRAINSDEEP-1))) {
         if (getSand(col,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col,row+1,1); continue; }
         if (col > 0) { if (getSand(col-1,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col-1,row+1,1); continue; } }
         if (col < (GRAINSWIDE-1)) { if (getSand(col+1,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col+1,row+1,1); } }
+      }
+    }
+  }
+}
+
+void reverseSand(void) {
+  //preserve current state
+  for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = buff[i]; }
+  
+  /* if cell below is empty, drop */
+  for (int16_t row=GRAINSDEEP-1; row>-1; row--) {
+    for (int16_t col=GRAINSWIDE-1; col>-1; col--) {
+      //Check if we should be dropping this grain
+      if (getSand(col,row, hourglass)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand(col,row, lastbuff) && (row > 0)) {
+        if (getSand(col,row-1, lastbuff) == 0) { setSand(col,row,0); setSand(col,row-1,1); continue; }
+        if (col > 0) { if (getSand(col-1,row-1, lastbuff) == 0) { setSand(col,row,0); setSand(col-1,row-1,1); continue; } }
+        if (col < (GRAINSWIDE-1)) { if (getSand(col+1,row-1, lastbuff) == 0) { setSand(col,row,0); setSand(col+1,row-1,1); } }
       }
     }
   }
@@ -167,7 +185,9 @@ void setup() {
 void loop() {
   static int nexttime = millis();
   static int nextframe = millis() + 10;
+  static int counter = 0;
   if (millis() > nexttime) {
+    counter++;
     setSand(32,0,1);    
     showBuf(64,0);
     
@@ -181,7 +201,8 @@ void loop() {
   }
 
   if (millis() > nextframe) {
-    moveSand();
+    if (counter < 100) moveSand();
+    else reverseSand();
     showBuf(64,0);
     display.display();
     nextframe = millis()+10;
