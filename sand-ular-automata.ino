@@ -172,7 +172,7 @@ void setup() {
 // the loop routine runs over and over again forever:
 void loop() {
   static int nexttime = millis();
-  static int nextframe = millis() + 100;
+  static int nextframe = millis() + 10;
   if (millis() > nexttime) {
     setSand(16,0,1);    
     showBuf(64,0);
@@ -181,16 +181,16 @@ void loop() {
     //s1.y += 1;
     //display.setPixel(s1.x, s1.y);
     display.display();
-    nexttime = millis()+500;
-    if (digitalRead(led)) digitalWrite(led,LOW);
-    else digitalWrite(led,HIGH);
+    nexttime = millis()+300;
+    //if (digitalRead(led)) digitalWrite(led,LOW);
+    //else digitalWrite(led,HIGH);
   }
 
   if (millis() > nextframe) {
     moveSand();
     showBuf(64,0);
     display.display();
-    nextframe = millis()+100;
+    nextframe = millis()+10;
   }
 
   /*
