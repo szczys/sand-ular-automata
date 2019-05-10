@@ -137,9 +137,27 @@ void moveSand(void) {
       //Check if we should be dropping this grain
       if (getSand(col,row, hourglass)) continue;  //Don't move cells that make up the hourglass itself
       if (getSand(col,row, lastbuff) && (row < (GRAINSDEEP-1))) {
-        if (getSand(col,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col,row+1,1); continue; }
-        if (col > 0) { if (getSand(col-1,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col-1,row+1,1); continue; } }
-        if (col < (GRAINSWIDE-1)) { if (getSand(col+1,row+1, lastbuff) == 0) { setSand(col,row,0); setSand(col+1,row+1,1); } }
+        if (getSand(col,row+1, lastbuff) == 0) {
+          if (getSand(col,row+2, hourglass) == 0) { //Make sure we have buffer between sand and glass
+            setSand(col,row,0); setSand(col,row+1,1);
+          }
+          continue;
+        }
+        if (col > 0) {
+          if (getSand(col-1,row+1, lastbuff) == 0) {
+            if (getSand(col-2,row+1, hourglass) == 0) {
+              setSand(col,row,0); setSand(col-1,row+1,1);
+            }
+            continue;
+          }
+        }
+        if (col < (GRAINSWIDE-1)) {
+          if (getSand(col+1,row+1, lastbuff) == 0) {
+            if (getSand(col+2, row+1, hourglass) == 0) {
+              setSand(col,row,0); setSand(col+1,row+1,1);
+            }
+          }
+        }
       }
     }
   }
@@ -201,8 +219,9 @@ void loop() {
   }
 
   if (millis() > nextframe) {
+    moveSand();/*
     if (counter < 100) moveSand();
-    else reverseSand();
+    else reverseSand(); */
     showBuf(64,0);
     display.display();
     nextframe = millis()+10;
