@@ -17,8 +17,8 @@
 #include "SH1106Wire.h"
 
 
-#define GRAINSWIDE  32 //GRAINSWIDE must be divisible by 8
-#define GRAINSDEEP  32
+#define GRAINSWIDE  64 //GRAINSWIDE must be divisible by 8
+#define GRAINSDEEP  64
 
 // ESP-WROOM-32 has LED on pin 2:
 int led = 2;
@@ -88,25 +88,31 @@ void showBuf(uint16_t xoffset, uint16_t yoffset) {
 }
 
 uint8_t getSand(uint16_t x, uint16_t y) {
-  //uint16_t byteIdx = (x/8)+(y*(GRAINSWIDE/8));
-  //uint16_t byteLoc = x%8;
+  uint16_t byteIdx = y*(GRAINSDEEP/8);
+  uint16_t byteOffset = x/8;
+  uint16_t byteLoc = x%8;
 
-  //Imagedraw places left to right a top to bottom, and top to bottom as left to right
+  /*
+  //Imagedraw places left to right as top to bottom, and top to bottom as left to right
   uint16_t byteIdx = x*(GRAINSWIDE/8);
   uint16_t byteOffset = (y/8);
   uint16_t byteLoc = y%8;
+  */
   if (lastbuff[byteIdx+byteOffset] & (1<<byteLoc)) return 1;
   else return 0;  
 }
 
 void setSand(uint16_t x, uint16_t y, uint8_t onoff) {
-  //uint16_t byteIdx = (x/8)+(y*(GRAINSWIDE/8));
-  //uint16_t byteLoc = x%8;
+  uint16_t byteIdx = y*(GRAINSDEEP/8);
+  uint16_t byteOffset = (x/8);
+  uint16_t byteLoc = x%8;
 
-  //Imagedraw places left to right a top to bottom, and top to bottom as left to right
+  /*
+  //Imagedraw places left to right as top to bottom, and top to bottom as left to right
   uint16_t byteIdx = x*(GRAINSWIDE/8);
   uint16_t byteOffset = (y/8);
   uint16_t byteLoc = y%8;
+  */
   if (onoff > 0) { buff[byteIdx+byteOffset] |= (1<<byteLoc); }
   else { buff[byteIdx+byteOffset] &= ~(1<<byteLoc); }
 }
@@ -154,7 +160,7 @@ void setup() {
   
   display.init();
   display.drawString(0, 0, "Hello Sandular");
-  showBuf(20,20);
+  showBuf(64,0);
   display.display();
 
   
@@ -169,7 +175,7 @@ void loop() {
   static int nextframe = millis() + 100;
   if (millis() > nexttime) {
     setSand(16,0,1);    
-    showBuf(20,20);
+    showBuf(64,0);
     
     //display.clearPixel(s1.x, s1.y);
     //s1.y += 1;
@@ -182,7 +188,7 @@ void loop() {
 
   if (millis() > nextframe) {
     moveSand();
-    showBuf(20,20);
+    showBuf(64,0);
     display.display();
     nextframe = millis()+100;
   }
