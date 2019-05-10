@@ -76,6 +76,11 @@ struct Sand
 SH1106Wire display(0x3c, 18, 19);
 struct Sand s1 = {12,12};
 
+void clearBuff(void);
+void showBuf(uint16_t xoffset, uint16_t yoffset);
+uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]);
+
+
 void clearBuff(void) {
   for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) {
     buff[i] = hourglass[i];
@@ -85,6 +90,15 @@ void clearBuff(void) {
 
 void showBuf(uint16_t xoffset, uint16_t yoffset) {
   display.clear(); //drawFastImage doesn't draw black pixels so clear first
+  uint16_t sandcount = 0;
+  for (uint8_t i=0; i<64; i++) {
+    for (uint8_t j=0; j<64; j++) {
+      if (getSand(j,i,buff)) ++sandcount;
+    }
+  }
+  char sbuf[20];
+  itoa(sandcount,sbuf,10);
+  display.drawString(0, 11, sbuf);
   display.drawFastImage(xoffset, yoffset, GRAINSWIDE, GRAINSDEEP, buff);
 }
 
@@ -118,6 +132,24 @@ void setSand(uint16_t x, uint16_t y, uint8_t onoff) {
   else { buff[byteIdx+byteOffset] &= ~(1<<byteLoc); }
 }
 
+uint8_t notTouchingGlass(uint16_t x, uint16_t y) {
+  //Sand *should* always be in the hour glass so we don't check for y-axis buffer overflows
+  if (y>0) {
+    if (getSand(x,y-1,hourglass)) return 0;
+    if (getSand(x+1,y-1,hourglass)) return 0;
+    if (getSand(x-1,y-1,hourglass)) return 0;
+  }
+  if (getSand(x+1,y,hourglass)) return 0;
+  if (getSand(x-1,y,hourglass)) return 0;
+
+  if (y<(GRAINSDEEP-1)) {
+    if (getSand(x,y+1,hourglass)) return 0;
+    if (getSand(x+1,y+1,hourglass)) return 0;
+    if (getSand(x-1,y+1,hourglass)) return 0;
+  }
+  return 1;
+}
+
 /*
  * Cellular automata scheme:
  * 
@@ -129,34 +161,23 @@ void setSand(uint16_t x, uint16_t y, uint8_t onoff) {
 
 void moveSand(void) {
   //preserve current state
-  for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = buff[i]; }
+  //for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = buff[i]; }
   
   /* if cell below is empty, drop */
-  for (uint16_t row=0; row<GRAINSDEEP; row++) {
+  for (int16_t row=GRAINSDEEP-2; row>=0; row--) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
       //Check if we should be dropping this grain
       if (getSand(col,row, hourglass)) continue;  //Don't move cells that make up the hourglass itself
-      if (getSand(col,row, lastbuff) && (row < (GRAINSDEEP-1))) {
-        if (getSand(col,row+1, lastbuff) == 0) {
-          if (getSand(col,row+2, hourglass) == 0) { //Make sure we have buffer between sand and glass
-            setSand(col,row,0); setSand(col,row+1,1);
-          }
-          continue;
+      if (getSand(col,row, buff)) {
+        if ((getSand(col,row+1, buff) == 0) && (notTouchingGlass(col,row+1))) {
+          setSand(col,row,0); setSand(col,row+1,1); continue;
         }
-        if (col > 0) {
-          if (getSand(col-1,row+1, lastbuff) == 0) {
-            if (getSand(col-2,row+1, hourglass) == 0) {
-              setSand(col,row,0); setSand(col-1,row+1,1);
-            }
-            continue;
-          }
+        else if ((col > 0) && (getSand(col-1,row+1, buff) == 0) && (notTouchingGlass(col-1,row+1))) {
+          setSand(col,row,0); setSand(col-1,row+1,1); continue;
         }
-        if (col < (GRAINSWIDE-1)) {
-          if (getSand(col+1,row+1, lastbuff) == 0) {
-            if (getSand(col+2, row+1, hourglass) == 0) {
-              setSand(col,row,0); setSand(col+1,row+1,1);
-            }
-          }
+          
+        else if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, buff) == 0) && (notTouchingGlass(col+1,row+1))) {
+          setSand(col,row,0); setSand(col+1,row+1,1);
         }
       }
     }
@@ -165,17 +186,24 @@ void moveSand(void) {
 
 void reverseSand(void) {
   //preserve current state
-  for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = buff[i]; }
+  //for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = buff[i]; }
   
   /* if cell below is empty, drop */
-  for (int16_t row=GRAINSDEEP-1; row>-1; row--) {
-    for (int16_t col=GRAINSWIDE-1; col>-1; col--) {
+  for (int16_t row=1; row<GRAINSDEEP-1; row++) {
+    for (int16_t col=GRAINSWIDE-1; col>=0; col--) {
       //Check if we should be dropping this grain
       if (getSand(col,row, hourglass)) continue;  //Don't move cells that make up the hourglass itself
-      if (getSand(col,row, lastbuff) && (row > 0)) {
-        if (getSand(col,row-1, lastbuff) == 0) { setSand(col,row,0); setSand(col,row-1,1); continue; }
-        if (col > 0) { if (getSand(col-1,row-1, lastbuff) == 0) { setSand(col,row,0); setSand(col-1,row-1,1); continue; } }
-        if (col < (GRAINSWIDE-1)) { if (getSand(col+1,row-1, lastbuff) == 0) { setSand(col,row,0); setSand(col+1,row-1,1); } }
+      if (getSand(col,row, buff)) {
+        if ((getSand(col,row-1, buff) == 0) && (notTouchingGlass(col,row-1))) {
+          setSand(col,row,0); setSand(col,row-1,1); continue;
+        }
+        
+        else if ((col > 0) && (getSand(col-1,row-1, buff) == 0) && (notTouchingGlass(col-1,row-1))){
+          setSand(col,row,0); setSand(col-1,row-1,1); continue;
+        }
+        else if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, buff) == 0) && (notTouchingGlass(col+1,row-1))) {
+          setSand(col,row,0); setSand(col+1,row-1,1);
+        }
       }
     }
   }
@@ -187,6 +215,15 @@ void setup() {
   pinMode(led, OUTPUT);
 
   clearBuff();
+
+  /*
+  //Fill with test sand
+  for (uint8_t i=58; i>47; i--) {
+    for (uint8_t j=24; j<39; j++) {
+      setSand(j,i,1);
+    }
+  }
+  */
   
   display.init();
   display.drawString(0, 0, "Hello Sandular");
@@ -205,8 +242,8 @@ void loop() {
   static int nextframe = millis() + 10;
   static int counter = 0;
   if (millis() > nexttime) {
-    counter++;
-    setSand(32,0,1);    
+    if (counter++ < 150) setSand(32,0,1);
+    else setSand(32,0,0);    
     showBuf(64,0);
     
     //display.clearPixel(s1.x, s1.y);
@@ -219,9 +256,8 @@ void loop() {
   }
 
   if (millis() > nextframe) {
-    moveSand();/*
-    if (counter < 100) moveSand();
-    else reverseSand(); */
+    if ((counter < 150) || (counter > 200)) moveSand();
+    else reverseSand();
     showBuf(64,0);
     display.display();
     nextframe = millis()+10;
