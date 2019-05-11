@@ -23,12 +23,13 @@ int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 
 #define GRAINSWIDE  64 //GRAINSWIDE must be divisible by 8
 #define GRAINSDEEP  64
+#define BUFSIZE     (GRAINSWIDE/8)*GRAINSDEEP
 
 // ESP-WROOM-32 has LED on pin 2:
 int led = 2;
 
-uint8_t botbuff  [(GRAINSWIDE/8)*GRAINSDEEP];
-uint8_t topbuff [(GRAINSWIDE/8)*GRAINSDEEP];
+uint8_t botbuff  [BUFSIZE];
+uint8_t topbuff [BUFSIZE];
 uint8_t toggle;
 
 // I2C version
@@ -37,11 +38,11 @@ SH1106Wire display(0x3c, 21, 22);
 
 void clearBuff(void);
 void showBuf(void);
-uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]);
+uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]);
 
 
 void clearBuff(void) {
-  for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) {
+  for (uint16_t i=0; i<(BUFSIZE); i++) {
     botbuff  [i] = hourglassbot[i];
     topbuff [i] = hourglasstop[i];
   }
@@ -64,7 +65,7 @@ void showBuf(void) {
   display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff);
 }
 
-uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
+uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
   uint16_t byteIdx = y*(GRAINSDEEP/8);
   uint16_t byteOffset = x/8;
   uint16_t byteLoc = x%8;
@@ -73,7 +74,7 @@ uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAIN
   else return 0;  
 }
 
-void setSand(uint16_t x, uint16_t y, uint8_t onoff, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
+void setSand(uint16_t x, uint16_t y, uint8_t onoff, uint8_t framebuffer[BUFSIZE]) {
   uint16_t byteIdx = y*(GRAINSDEEP/8);
   uint16_t byteOffset = (x/8);
   uint16_t byteLoc = x%8;
@@ -82,7 +83,7 @@ void setSand(uint16_t x, uint16_t y, uint8_t onoff, uint8_t framebuffer[(GRAINSW
   else { framebuffer[byteIdx+byteOffset] &= ~(1<<byteLoc); }
 }
 
-uint8_t notTouchingGlass(uint16_t x, uint16_t y, uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
+uint8_t notTouchingGlass(uint16_t x, uint16_t y, uint8_t glassbuffer[BUFSIZE]) {
   //Sand *should* always be in the hour glass so we don't check for y-axis buffer overflows
   if (y>0) {
     if (getSand(x,y-1,glassbuffer)) return 0;
@@ -100,6 +101,10 @@ uint8_t notTouchingGlass(uint16_t x, uint16_t y, uint8_t glassbuffer[(GRAINSWIDE
   return 1;
 }
 
+void moveN(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
+  ;;
+}
+
 /*
  * Cellular automata scheme:
  * 
@@ -108,8 +113,7 @@ uint8_t notTouchingGlass(uint16_t x, uint16_t y, uint8_t glassbuffer[(GRAINSWIDE
  * now that individual cells have fallen, check row issues:
  *   if row above is entirely full, and this row has empty spaces near the edges, move one grain toward that empty space
  */
-
-void moveSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {  
+void moveSand(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {  
   /* if cell below is empty, drop */
   for (int16_t row=GRAINSDEEP-2; row>=0; row--) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
@@ -144,7 +148,7 @@ void moveSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffe
   }
 }
 
-void reverseSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {  
+void reverseSand(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {  
   /* if cell below is empty, drop */
   for (int16_t row=1; row<GRAINSDEEP; row++) {
     for (int16_t col=GRAINSWIDE-1; col>=0; col--) {
@@ -235,13 +239,13 @@ void loop() {
     }
   
     if (gravity) {
-      if (getSand(32,63,topbuff)) {
+      if (getSand(32,63,topbuff) && (getSand(32,0,botbuff) == 0)) {
         setSand(32,63,0,topbuff);
         setSand(32,0,1,botbuff); 
       }
     }
     else {
-      if (getSand(32,0,botbuff)) {
+      if (getSand(32,0,botbuff) && (getSand(32,63,topbuff) == 0)) {
         setSand(32,0,0,botbuff);
         setSand(32,63,1,topbuff); 
       }
