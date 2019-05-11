@@ -180,14 +180,13 @@ void setup() {
   toggle = 0;
   clearBuff();
 
-  /*
+  
   //Fill with test sand
-  for (uint8_t i=58; i>47; i--) {
+  for (uint8_t i=6; i<16; i++) {
     for (uint8_t j=24; j<39; j++) {
-      setSand(j,i,1,botbuff);
+      setSand(j,i,1,topbuff);
     }
   }
-  */
   
   display.init();
   display.drawString(0, 0, "Hello Sandular");
@@ -202,11 +201,15 @@ void loop() {
   static int counter = 0;
   if (millis() > nexttime) {
     /*
+    //used to reverse gravitiy after a while for testing
     if (counter++ < 150) setSand(32,0,1,botbuff);
     else setSand(32,0,0,botbuff);
     */
-    setSand(32,6,1,topbuff);
-    setSand(32,0,1,botbuff); 
+    //setSand(32,6,1,topbuff);
+    if (getSand(32,63,topbuff)) {
+      setSand(32,63,0,topbuff);
+      setSand(32,0,1,botbuff); 
+    }
     showBuf();
 
     display.display();
@@ -217,6 +220,7 @@ void loop() {
 
   if (millis() > nextframe) {
     /*
+    //used to reverse gravitiy after a while for testing
     if ((counter < 150) || (counter > 200)) moveSand(botbuff,hourglassbot);
     else reverseSand(botbuff,hourglassbot);
     */
