@@ -17,6 +17,9 @@
 #include "SH1106Wire.h"
 #include "hourglass.h"
 
+const int MPU_addr=0x68;  // I2C address of the MPU-6050
+int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+
 
 #define GRAINSWIDE  64 //GRAINSWIDE must be divisible by 8
 #define GRAINSDEEP  64
@@ -46,6 +49,7 @@ void clearBuff(void) {
 
 void showBuf(void) {
   display.clear(); //drawFastImage doesn't draw black pixels so clear first
+  /*
   uint16_t sandcount = 0;
   for (uint8_t i=0; i<64; i++) {
     for (uint8_t j=0; j<64; j++) {
@@ -55,6 +59,7 @@ void showBuf(void) {
   char sbuf[20];
   itoa(sandcount,sbuf,10);
   display.drawString(0, 11, sbuf);
+  */
   display.drawFastImage(64, 0, GRAINSWIDE, GRAINSDEEP, botbuff);
   display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff);
 }
@@ -180,6 +185,11 @@ void setup() {
   toggle = 0;
   clearBuff();
 
+  Wire.begin();
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x6B);  // PWR_MGMT_1 register
+  Wire.write(0);     // set to zero (wakes up the MPU-6050)
+  Wire.endTransmission(true);
   
   //Fill with test sand
   for (uint8_t i=6; i<36; i++) {
@@ -190,7 +200,6 @@ void setup() {
   }
   
   display.init();
-  display.drawString(0, 0, "Hello Sandular");
   showBuf();
   display.display();  
 }
@@ -209,6 +218,22 @@ void loop() {
     else setSand(32,0,0,botbuff);
     */
     //setSand(32,6,1,topbuff);
+
+    Wire.beginTransmission(MPU_addr);
+    Wire.write(0x3D);  // starting with register 0x3D (ACCEL_YOUT_H)
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU_addr,2,true);  // request a total of 14 registers   
+    AcY=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+
+    if (AcY > 1000) {
+      digitalWrite(led,1);
+      gravity = 0;
+    }
+    if (AcY < -1000) {
+      digitalWrite(led,0);
+      gravity = 1;
+    }
+  
     if (gravity) {
       if (getSand(32,63,topbuff)) {
         setSand(32,63,0,topbuff);
@@ -235,10 +260,13 @@ void loop() {
     if ((counter < 150) || (counter > 200)) moveSand(botbuff,hourglassbot);
     else reverseSand(botbuff,hourglassbot);
     */
+
+    /*
     if (counter == 70) {
       if (gravity++) gravity=0;
       counter = 0;
     }
+    */
     if (gravity) {
       moveSand(topbuff,hourglasstop);
       moveSand(botbuff,hourglassbot);
