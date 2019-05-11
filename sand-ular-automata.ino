@@ -27,55 +27,10 @@ int led = 2;
 uint8_t botbuff  [(GRAINSWIDE/8)*GRAINSDEEP];
 uint8_t topbuff [(GRAINSWIDE/8)*GRAINSDEEP];
 uint8_t toggle;
-/*
-uint8_t buff[32*4] = {
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000000,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-  0b11111111, 0b00000000, 0b00000000, 0b00000011,
-};
-*/
-
-struct Sand
-{
-  char x;
-  char y;
-};
-
-
 
 // I2C version
 //SSD1306 display(0x3c, 18, 19);
 SH1106Wire display(0x3c, 18, 19);
-struct Sand s1 = {12,12};
 
 void clearBuff(void);
 void showBuf(uint16_t xoffset, uint16_t yoffset);
@@ -109,12 +64,6 @@ uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAIN
   uint16_t byteOffset = x/8;
   uint16_t byteLoc = x%8;
 
-  /*
-  //Imagedraw places left to right as top to bottom, and top to bottom as left to right
-  uint16_t byteIdx = x*(GRAINSWIDE/8);
-  uint16_t byteOffset = (y/8);
-  uint16_t byteLoc = y%8;
-  */
   if (framebuffer[byteIdx+byteOffset] & (1<<byteLoc)) return 1;
   else return 0;  
 }
@@ -124,12 +73,6 @@ void setSand(uint16_t x, uint16_t y, uint8_t onoff) {
   uint16_t byteOffset = (x/8);
   uint16_t byteLoc = x%8;
 
-  /*
-  //Imagedraw places left to right as top to bottom, and top to bottom as left to right
-  uint16_t byteIdx = x*(GRAINSWIDE/8);
-  uint16_t byteOffset = (y/8);
-  uint16_t byteLoc = y%8;
-  */
   if (onoff > 0) { botbuff  [byteIdx+byteOffset] |= (1<<byteLoc); }
   else { botbuff  [byteIdx+byteOffset] &= ~(1<<byteLoc); }
 }
@@ -161,10 +104,7 @@ uint8_t notTouchingGlass(uint16_t x, uint16_t y) {
  *   if row above is entirely full, and this row has empty spaces near the edges, move one grain toward that empty space
  */
 
-void moveSand(void) {
-  //preserve current state
-  //for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = botbuff  [i]; }
-  
+void moveSand(void) {  
   /* if cell below is empty, drop */
   for (int16_t row=GRAINSDEEP-2; row>=0; row--) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
@@ -199,10 +139,7 @@ void moveSand(void) {
   }
 }
 
-void reverseSand(void) {
-  //preserve current state
-  //for (uint16_t i=0; i<((GRAINSWIDE/8)*GRAINSDEEP); i++) { lastbuff[i] = botbuff  [i]; }
-  
+void reverseSand(void) {  
   /* if cell below is empty, drop */
   for (int16_t row=1; row<GRAINSDEEP-1; row++) {
     for (int16_t col=GRAINSWIDE-1; col>=0; col--) {
@@ -255,12 +192,7 @@ void setup() {
   display.init();
   display.drawString(0, 0, "Hello Sandular");
   showBuf(64,0);
-  display.display();
-
-  
-  display.setPixel(s1.x, s1.y);
-  display.display();
-  
+  display.display();  
 }
 
 // the loop routine runs over and over again forever:
@@ -272,10 +204,7 @@ void loop() {
     if (counter++ < 150) setSand(32,0,1);
     else setSand(32,0,0);    
     showBuf(64,0);
-    
-    //display.clearPixel(s1.x, s1.y);
-    //s1.y += 1;
-    //display.setPixel(s1.x, s1.y);
+
     display.display();
     nexttime = millis()+300;
     //if (digitalRead(led)) digitalWrite(led,LOW);
