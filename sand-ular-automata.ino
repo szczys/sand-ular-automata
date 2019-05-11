@@ -33,7 +33,7 @@ uint8_t toggle;
 SH1106Wire display(0x3c, 18, 19);
 
 void clearBuff(void);
-void showBuf(uint16_t xoffset, uint16_t yoffset);
+void showBuf(void);
 uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]);
 
 
@@ -44,7 +44,7 @@ void clearBuff(void) {
   }
 }
 
-void showBuf(uint16_t xoffset, uint16_t yoffset) {
+void showBuf(void) {
   display.clear(); //drawFastImage doesn't draw black pixels so clear first
   uint16_t sandcount = 0;
   for (uint8_t i=0; i<64; i++) {
@@ -55,8 +55,8 @@ void showBuf(uint16_t xoffset, uint16_t yoffset) {
   char sbuf[20];
   itoa(sandcount,sbuf,10);
   display.drawString(0, 11, sbuf);
-  display.drawFastImage(xoffset, yoffset, GRAINSWIDE, GRAINSDEEP, botbuff  );
-  display.drawFastImage(0, yoffset, GRAINSWIDE, GRAINSDEEP, topbuff );
+  display.drawFastImage(64, 0, GRAINSWIDE, GRAINSDEEP, botbuff  );
+  display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff );
 }
 
 uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
@@ -68,29 +68,29 @@ uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAIN
   else return 0;  
 }
 
-void setSand(uint16_t x, uint16_t y, uint8_t onoff) {
+void setSand(uint16_t x, uint16_t y, uint8_t onoff, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
   uint16_t byteIdx = y*(GRAINSDEEP/8);
   uint16_t byteOffset = (x/8);
   uint16_t byteLoc = x%8;
 
-  if (onoff > 0) { botbuff  [byteIdx+byteOffset] |= (1<<byteLoc); }
-  else { botbuff  [byteIdx+byteOffset] &= ~(1<<byteLoc); }
+  if (onoff > 0) { framebuffer[byteIdx+byteOffset] |= (1<<byteLoc); }
+  else { framebuffer[byteIdx+byteOffset] &= ~(1<<byteLoc); }
 }
 
-uint8_t notTouchingGlass(uint16_t x, uint16_t y) {
+uint8_t notTouchingGlass(uint16_t x, uint16_t y, uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
   //Sand *should* always be in the hour glass so we don't check for y-axis buffer overflows
   if (y>0) {
-    if (getSand(x,y-1,hourglassbot)) return 0;
-    if (getSand(x+1,y-1,hourglassbot)) return 0;
-    if (getSand(x-1,y-1,hourglassbot)) return 0;
+    if (getSand(x,y-1,glassbuffer)) return 0;
+    if (getSand(x+1,y-1,glassbuffer)) return 0;
+    if (getSand(x-1,y-1,glassbuffer)) return 0;
   }
-  if (getSand(x+1,y,hourglassbot)) return 0;
-  if (getSand(x-1,y,hourglassbot)) return 0;
+  if (getSand(x+1,y,glassbuffer)) return 0;
+  if (getSand(x-1,y,glassbuffer)) return 0;
 
   if (y<(GRAINSDEEP-1)) {
-    if (getSand(x,y+1,hourglassbot)) return 0;
-    if (getSand(x+1,y+1,hourglassbot)) return 0;
-    if (getSand(x-1,y+1,hourglassbot)) return 0;
+    if (getSand(x,y+1,glassbuffer)) return 0;
+    if (getSand(x+1,y+1,glassbuffer)) return 0;
+    if (getSand(x-1,y+1,glassbuffer)) return 0;
   }
   return 1;
 }
@@ -104,34 +104,34 @@ uint8_t notTouchingGlass(uint16_t x, uint16_t y) {
  *   if row above is entirely full, and this row has empty spaces near the edges, move one grain toward that empty space
  */
 
-void moveSand(void) {  
+void moveSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {  
   /* if cell below is empty, drop */
   for (int16_t row=GRAINSDEEP-2; row>=0; row--) {
     for (uint16_t col=0; col<GRAINSWIDE; col++) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, hourglassbot)) continue;  //Don't move cells that make up the hourglass itself
-      if (getSand(col,row, botbuff  )) {
-        if ((getSand(col,row+1, botbuff  ) == 0) && (notTouchingGlass(col,row+1))) {
-          setSand(col,row,0); setSand(col,row+1,1); continue;
+      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand(col,row, framebuffer )) {
+        if ((getSand(col,row+1, framebuffer ) == 0) && (notTouchingGlass(col,row+1,glassbuffer))) {
+          setSand(col,row,0, framebuffer); setSand(col,row+1,1, framebuffer); continue;
         }
         //Toggle alternates directions checked first, otherwise operations are the same
         if (toggle) {
           toggle=0;
-          if ((col > 0) && (getSand(col-1,row+1, botbuff  ) == 0) && (notTouchingGlass(col-1,row+1))) {
-            setSand(col,row,0); setSand(col-1,row+1,1); continue;
+          if ((col > 0) && (getSand(col-1,row+1, framebuffer) == 0) && (notTouchingGlass(col-1,row+1,glassbuffer))) {
+            setSand(col,row,0, framebuffer); setSand(col-1,row+1,1, framebuffer); continue;
           }
           
-          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, botbuff  ) == 0) && (notTouchingGlass(col+1,row+1))) {
-            setSand(col,row,0); setSand(col+1,row+1,1);
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, framebuffer) == 0) && (notTouchingGlass(col+1,row+1,glassbuffer))) {
+            setSand(col,row,0, framebuffer); setSand(col+1,row+1,1, framebuffer);
           }
         }
         else {
           ++toggle;       
-          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, botbuff  ) == 0) && (notTouchingGlass(col+1,row+1))) {
-            setSand(col,row,0); setSand(col+1,row+1,1);
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row+1, framebuffer) == 0) && (notTouchingGlass(col+1,row+1,glassbuffer))) {
+            setSand(col,row,0, framebuffer); setSand(col+1,row+1,1, framebuffer);
           }
-          if ((col > 0) && (getSand(col-1,row+1, botbuff  ) == 0) && (notTouchingGlass(col-1,row+1))) {
-            setSand(col,row,0); setSand(col-1,row+1,1); continue;
+          if ((col > 0) && (getSand(col-1,row+1, framebuffer) == 0) && (notTouchingGlass(col-1,row+1,glassbuffer))) {
+            setSand(col,row,0, framebuffer); setSand(col-1,row+1,1, framebuffer); continue;
           }
         }
       }
@@ -139,33 +139,33 @@ void moveSand(void) {
   }
 }
 
-void reverseSand(void) {  
+void reverseSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {  
   /* if cell below is empty, drop */
   for (int16_t row=1; row<GRAINSDEEP-1; row++) {
     for (int16_t col=GRAINSWIDE-1; col>=0; col--) {
       //Check if we should be dropping this grain
-      if (getSand(col,row, hourglassbot)) continue;  //Don't move cells that make up the hourglass itself
-      if (getSand(col,row, botbuff  )) {
-        if ((getSand(col,row-1, botbuff  ) == 0) && (notTouchingGlass(col,row-1))) {
-          setSand(col,row,0); setSand(col,row-1,1); continue;
+      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand(col,row, framebuffer)) {
+        if ((getSand(col,row-1, framebuffer) == 0) && (notTouchingGlass(col,row-1,glassbuffer))) {
+          setSand(col,row,0, framebuffer); setSand(col,row-1,1, framebuffer); continue;
         }
         //Toggle alternates directions checked first, otherwise operations are the same
         if (toggle) {
           toggle = 0;
-          if ((col > 0) && (getSand(col-1,row-1, botbuff  ) == 0) && (notTouchingGlass(col-1,row-1))){
-            setSand(col,row,0); setSand(col-1,row-1,1); continue;
+          if ((col > 0) && (getSand(col-1,row-1, framebuffer) == 0) && (notTouchingGlass(col-1,row-1,glassbuffer))){
+            setSand(col,row,0, framebuffer); setSand(col-1,row-1,1, framebuffer); continue;
           }
-          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, botbuff  ) == 0) && (notTouchingGlass(col+1,row-1))) {
-            setSand(col,row,0); setSand(col+1,row-1,1);
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, framebuffer) == 0) && (notTouchingGlass(col+1,row-1,glassbuffer))) {
+            setSand(col,row,0, framebuffer); setSand(col+1,row-1,1, framebuffer);
           }
         }
         else {
           ++toggle;
-          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, botbuff  ) == 0) && (notTouchingGlass(col+1,row-1))) {
-            setSand(col,row,0); setSand(col+1,row-1,1);
+          if ((col < (GRAINSWIDE-1)) && (getSand(col+1,row-1, framebuffer) == 0) && (notTouchingGlass(col+1,row-1,glassbuffer))) {
+            setSand(col,row,0, framebuffer); setSand(col+1,row-1,1, framebuffer);
           }
-          if ((col > 0) && (getSand(col-1,row-1, botbuff  ) == 0) && (notTouchingGlass(col-1,row-1))){
-            setSand(col,row,0); setSand(col-1,row-1,1); continue;
+          if ((col > 0) && (getSand(col-1,row-1, framebuffer) == 0) && (notTouchingGlass(col-1,row-1,glassbuffer))){
+            setSand(col,row,0, framebuffer); setSand(col-1,row-1,1, framebuffer); continue;
           }
         }
       }
@@ -184,14 +184,14 @@ void setup() {
   //Fill with test sand
   for (uint8_t i=58; i>47; i--) {
     for (uint8_t j=24; j<39; j++) {
-      setSand(j,i,1);
+      setSand(j,i,1,botbuff);
     }
   }
   */
   
   display.init();
   display.drawString(0, 0, "Hello Sandular");
-  showBuf(64,0);
+  showBuf();
   display.display();  
 }
 
@@ -201,9 +201,13 @@ void loop() {
   static int nextframe = millis() + 10;
   static int counter = 0;
   if (millis() > nexttime) {
-    if (counter++ < 150) setSand(32,0,1);
-    else setSand(32,0,0);    
-    showBuf(64,0);
+    /*
+    if (counter++ < 150) setSand(32,0,1,botbuff);
+    else setSand(32,0,0,botbuff);
+    */
+    setSand(32,6,1,topbuff);
+    setSand(32,0,1,botbuff); 
+    showBuf();
 
     display.display();
     nexttime = millis()+300;
@@ -212,9 +216,13 @@ void loop() {
   }
 
   if (millis() > nextframe) {
-    if ((counter < 150) || (counter > 200)) moveSand();
-    else reverseSand();
-    showBuf(64,0);
+    /*
+    if ((counter < 150) || (counter > 200)) moveSand(botbuff,hourglassbot);
+    else reverseSand(botbuff,hourglassbot);
+    */
+    moveSand(topbuff,hourglasstop);
+    moveSand(botbuff,hourglassbot);
+    showBuf();
     display.display();
     nextframe = millis()+10;
   }
