@@ -33,7 +33,7 @@ uint8_t toggle;
 
 // I2C version
 //SSD1306 display(0x3c, 18, 19);
-SH1106Wire display(0x3c, 18, 19);
+SH1106Wire display(0x3c, 21, 22);
 
 void clearBuff(void);
 void showBuf(void);
@@ -220,16 +220,16 @@ void loop() {
     //setSand(32,6,1,topbuff);
 
     Wire.beginTransmission(MPU_addr);
-    Wire.write(0x3D);  // starting with register 0x3D (ACCEL_YOUT_H)
+    Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
     Wire.endTransmission(false);
     Wire.requestFrom(MPU_addr,2,true);  // request a total of 14 registers   
-    AcY=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+    AcX=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
 
-    if (AcY > 1000) {
+    if (AcX < -1000) {
       digitalWrite(led,1);
       gravity = 0;
     }
-    if (AcY < -1000) {
+    if (AcX > 1000) {
       digitalWrite(led,0);
       gravity = 1;
     }
