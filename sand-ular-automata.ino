@@ -55,8 +55,8 @@ void showBuf(void) {
   char sbuf[20];
   itoa(sandcount,sbuf,10);
   display.drawString(0, 11, sbuf);
-  display.drawFastImage(64, 0, GRAINSWIDE, GRAINSDEEP, botbuff  );
-  display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff );
+  display.drawFastImage(64, 0, GRAINSWIDE, GRAINSDEEP, botbuff);
+  display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff);
 }
 
 uint8_t getSand(uint16_t x, uint16_t y, uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {
@@ -141,7 +141,7 @@ void moveSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffe
 
 void reverseSand(uint8_t framebuffer[(GRAINSWIDE/8)*GRAINSDEEP], uint8_t glassbuffer[(GRAINSWIDE/8)*GRAINSDEEP]) {  
   /* if cell below is empty, drop */
-  for (int16_t row=1; row<GRAINSDEEP-1; row++) {
+  for (int16_t row=1; row<GRAINSDEEP; row++) {
     for (int16_t col=GRAINSWIDE-1; col>=0; col--) {
       //Check if we should be dropping this grain
       if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
@@ -185,6 +185,7 @@ void setup() {
   for (uint8_t i=6; i<16; i++) {
     for (uint8_t j=24; j<39; j++) {
       setSand(j,i,1,topbuff);
+      setSand(j,i+30,1,botbuff);
     }
   }
   
@@ -199,16 +200,26 @@ void loop() {
   static int nexttime = millis();
   static int nextframe = millis() + 10;
   static int counter = 0;
+  static uint8_t gravity = 1;
   if (millis() > nexttime) {
+    ++counter;
     /*
     //used to reverse gravitiy after a while for testing
     if (counter++ < 150) setSand(32,0,1,botbuff);
     else setSand(32,0,0,botbuff);
     */
     //setSand(32,6,1,topbuff);
-    if (getSand(32,63,topbuff)) {
-      setSand(32,63,0,topbuff);
-      setSand(32,0,1,botbuff); 
+    if (gravity) {
+      if (getSand(32,63,topbuff)) {
+        setSand(32,63,0,topbuff);
+        setSand(32,0,1,botbuff); 
+      }
+    }
+    else {
+      if (getSand(32,0,botbuff)) {
+        setSand(32,0,0,botbuff);
+        setSand(32,63,1,topbuff); 
+      }
     }
     showBuf();
 
@@ -224,8 +235,18 @@ void loop() {
     if ((counter < 150) || (counter > 200)) moveSand(botbuff,hourglassbot);
     else reverseSand(botbuff,hourglassbot);
     */
-    moveSand(topbuff,hourglasstop);
-    moveSand(botbuff,hourglassbot);
+    if (counter == 70) {
+      if (gravity++) gravity=0;
+      counter = 0;
+    }
+    if (gravity) {
+      moveSand(topbuff,hourglasstop);
+      moveSand(botbuff,hourglassbot);
+    }
+    else {
+      reverseSand(botbuff,hourglassbot);
+      reverseSand(topbuff,hourglasstop);
+    }
     showBuf();
     display.display();
     nextframe = millis()+10;
