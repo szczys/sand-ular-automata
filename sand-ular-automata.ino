@@ -182,10 +182,10 @@ void setup() {
 
   
   //Fill with test sand
-  for (uint8_t i=6; i<16; i++) {
+  for (uint8_t i=6; i<36; i++) {
     for (uint8_t j=24; j<39; j++) {
       setSand(j,i,1,topbuff);
-      setSand(j,i+30,1,botbuff);
+      setSand(j,i+10,1,botbuff);
     }
   }
   
