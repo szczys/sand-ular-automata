@@ -50,17 +50,22 @@ void clearBuff(void) {
 
 void showBuf(void) {
   display.clear(); //drawFastImage doesn't draw black pixels so clear first
+
   /*
+  //Keep track of grains of sand to make sure we're not losing or creating any by accident
+  //This count includes 1466 of the hourglass frame itself
   uint16_t sandcount = 0;
   for (uint8_t i=0; i<64; i++) {
     for (uint8_t j=0; j<64; j++) {
       if (getSand(j,i,botbuff  )) ++sandcount;
+      if (getSand(j,i,topbuff  )) ++sandcount;
     }
   }
   char sbuf[20];
   itoa(sandcount,sbuf,10);
-  display.drawString(0, 11, sbuf);
+  display.drawString(50, 0, sbuf);
   */
+  
   display.drawFastImage(64, 0, GRAINSWIDE, GRAINSDEEP, botbuff);
   display.drawFastImage(0, 0, GRAINSWIDE, GRAINSDEEP, topbuff);
 }
@@ -312,7 +317,7 @@ void setup() {
   Wire.endTransmission(true);
   
   //Fill with test sand
-  for (uint8_t i=6; i<36; i++) {
+  for (uint8_t i=6; i<46; i++) {
     for (uint8_t j=24; j<39; j++) {
       setSand(j,i,1,topbuff);
       setSand(j,i+10,1,botbuff);
