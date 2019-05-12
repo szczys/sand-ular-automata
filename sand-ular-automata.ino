@@ -311,7 +311,9 @@ void loop() {
   static int nextframe = millis() + 10;
   static int counter = 0;
   static int8_t gravity = 1;
+  static int8_t weakengravity = 0;
   static int8_t tilt = 0;
+  static int8_t weakentilt = 0;
   if (millis() > nexttime) {
     ++counter;
     /*
@@ -383,23 +385,43 @@ void loop() {
       counter = 0;
     }
     */
-    
-    if (gravity==1) {
-      driftSouth(topbuff,hourglasstop);
-      driftSouth(botbuff,hourglassbot);
+
+        
+    if (weakentilt-- == 0) {
+      //Reset weakentilt to skip some frames if tilt is not very extreme
+      // 0==+/-16,000 1==+/-13,000 2==+/-10,000 3==+/-7,000 4==+/-4,000  
+      if ((AcY > -7000) && (AcY < 7000)) weakentilt = 3;
+      else if ((AcY > -10000) && (AcY < 10000)) weakentilt = 2;
+      else if ((AcY > -13000) && (AcY < 13000)) weakentilt = 1;
+      else weakentilt = 0;
+      
+      if (tilt==1) {
+        driftEast(topbuff,hourglasstop);
+        driftEast(botbuff,hourglassbot);
+      }
+      
+      if (tilt==-1) {
+        driftWest(botbuff,hourglassbot);
+        driftWest(topbuff,hourglasstop);
+      }
     }
-    if (gravity==-1) {
-      driftNorth(botbuff,hourglassbot);
-      driftNorth(topbuff,hourglasstop);
-    }
-    if (tilt==1) {
-      driftEast(topbuff,hourglasstop);
-      driftEast(botbuff,hourglassbot);
-    }
-    
-    if (tilt==-1) {
-      driftWest(botbuff,hourglassbot);
-      driftWest(topbuff,hourglasstop);
+
+    if (weakengravity-- == 0) {
+      //Reset weakentilt to skip some frames if tilt is not very extreme
+      // 0==+/-16,000 1==+/-13,000 2==+/-10,000 3==+/-7,000  
+      if ((AcX > -7000) && (AcX < 7000)) weakengravity = 3;
+      else if ((AcX > -10000) && (AcX < 10000)) weakengravity = 2;
+      else if ((AcX > -13000) && (AcX < 13000)) weakengravity = 1;
+      else weakengravity = 0;
+
+      if (gravity==1) {
+        driftSouth(topbuff,hourglasstop);
+        driftSouth(botbuff,hourglassbot);
+      }
+      if (gravity==-1) {
+        driftNorth(botbuff,hourglassbot);
+        driftNorth(topbuff,hourglasstop);
+      }
     }
     
     showBuf();
