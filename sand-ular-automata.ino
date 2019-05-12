@@ -125,11 +125,11 @@ void moveSE(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
   setSand(x,y,0, framebuffer); setSand(x+1,y+1,1, framebuffer);
 }
 
-void moveE(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
+void moveW(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
   setSand(x,y,0, framebuffer); setSand(x-1,y,1, framebuffer);
 }
 
-void moveW(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
+void moveE(uint16_t x, uint16_t y, uint8_t framebuffer[BUFSIZE]) {
   setSand(x,y,0, framebuffer); setSand(x+1,y,1, framebuffer);
 }
 
@@ -210,6 +210,75 @@ void driftNorth(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   }
 }
 
+void driftWest(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {  
+  /* if cell below is empty, drop */
+  for (int16_t col=1; col<GRAINSWIDE; col++) {
+    for (int16_t row=GRAINSDEEP-1; row>=0; row--) {
+      //Check if we should be dropping this grain
+      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand(col,row, framebuffer)) {
+        if ((getSand(col-1,row, framebuffer) == 0) && (notTouchingGlass(col-1,row,glassbuffer))) {
+          moveW(col,row,framebuffer); continue;
+        }
+        //Toggle alternates directions checked first, otherwise operations are the same
+        if (toggle) {
+          toggle = 0;
+          if ((row > 0) && (getSand(col-1,row-1, framebuffer) == 0) && (notTouchingGlass(col-1,row-1,glassbuffer))){
+            moveNW(col,row,framebuffer); continue;
+          }
+          if ((row < (GRAINSDEEP-1)) && (getSand(col-1,row+1, framebuffer) == 0) && (notTouchingGlass(col-1,row+1,glassbuffer))) {
+            moveSW(col,row,framebuffer); continue;
+          }
+        }
+        else {
+          ++toggle;
+          if ((row < (GRAINSDEEP-1)) && (getSand(col-1,row+1, framebuffer) == 0) && (notTouchingGlass(col-1,row+1,glassbuffer))) {
+            moveSW(col,row,framebuffer); continue;
+          }
+          if ((row > 0) && (getSand(col-1,row-1, framebuffer) == 0) && (notTouchingGlass(col-1,row-1,glassbuffer))){
+            moveNW(col,row,framebuffer); continue;
+          }
+        }
+      }
+    }
+  }
+}
+
+void driftEast(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {  
+  /* if cell below is empty, drop */
+  for (int16_t col=GRAINSWIDE-2; col>=0; col--) {
+    for (uint16_t row=0; row<GRAINSDEEP; row++) {
+      //Check if we should be dropping this grain
+      if (getSand(col,row, glassbuffer)) continue;  //Don't move cells that make up the hourglass itself
+      if (getSand(col,row, framebuffer )) {
+        if ((getSand(col+1,row, framebuffer ) == 0) && (notTouchingGlass(col+1,row,glassbuffer))) {
+          moveE(col,row,framebuffer); continue;
+        }
+        //Toggle alternates directions checked first, otherwise operations are the same
+        if (toggle) {
+          toggle=0;
+          if ((row > 0) && (getSand(col+1,row-1, framebuffer) == 0) && (notTouchingGlass(col+1,row-1,glassbuffer))) {
+            moveNE(col,row,framebuffer); continue;
+          }
+          
+          if ((row < (GRAINSDEEP-1)) && (getSand(col+1,row+1, framebuffer) == 0) && (notTouchingGlass(col+1,row+1,glassbuffer))) {
+            moveSE(col,row,framebuffer); continue;
+          }
+        }
+        else {
+          ++toggle;       
+          if ((row < (GRAINSDEEP-1)) && (getSand(col+1,row+1, framebuffer) == 0) && (notTouchingGlass(col+1,row+1,glassbuffer))) {
+            moveSE(col,row,framebuffer); continue;
+          }
+          if ((row > 0) && (getSand(col+1,row-1, framebuffer) == 0) && (notTouchingGlass(col+1,row-1,glassbuffer))) {
+            moveNE(col,row,framebuffer); continue;
+          }
+        }
+      }
+    }
+  }
+}
+
 // the setup routine runs once when you press reset:
 void setup() {                
   // initialize the digital pin as an output.
@@ -241,7 +310,8 @@ void loop() {
   static int nexttime = millis();
   static int nextframe = millis() + 10;
   static int counter = 0;
-  static uint8_t gravity = 1;
+  static int8_t gravity = 1;
+  static int8_t tilt = 0;
   if (millis() > nexttime) {
     ++counter;
     /*
@@ -254,30 +324,44 @@ void loop() {
     Wire.beginTransmission(MPU_addr);
     Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
     Wire.endTransmission(false);
-    Wire.requestFrom(MPU_addr,2,true);  // request a total of 14 registers   
+    Wire.requestFrom(MPU_addr,4,true);  // request a total of 14 registers   
     AcX=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
+    AcY=Wire.read()<<8|Wire.read();  // 0x3D (ACCEL_YOUT_H) & 0x3E (ACCEL_YOUT_L)
 
-    if (AcX < -1000) {
-      digitalWrite(led,1);
-      gravity = 0;
+    if (AcX < -2000) {
+      //digitalWrite(led,1);
+      gravity = -1;
     }
-    if (AcX > 1000) {
-      digitalWrite(led,0);
+    else if (AcX > 2000) {
+      //digitalWrite(led,0);
       gravity = 1;
     }
-  
-    if (gravity) {
+    else gravity = 0;
+
+    if (AcY < -2000) {
+      digitalWrite(led,1);
+      tilt = -1;
+    }
+    else if (AcY > 2000) {
+      digitalWrite(led,0);
+      tilt = 1;
+    }
+    else tilt = 0;
+
+    //Move one grain between top/bottom if necessary:
+    if (gravity==1) {
       if (getSand(32,63,topbuff) && (getSand(32,0,botbuff) == 0)) {
         setSand(32,63,0,topbuff);
         setSand(32,0,1,botbuff); 
       }
     }
-    else {
+    if (gravity==-1) {
       if (getSand(32,0,botbuff) && (getSand(32,63,topbuff) == 0)) {
         setSand(32,0,0,botbuff);
         setSand(32,63,1,topbuff); 
       }
     }
+
     showBuf();
 
     display.display();
@@ -299,14 +383,25 @@ void loop() {
       counter = 0;
     }
     */
-    if (gravity) {
+    
+    if (gravity==1) {
       driftSouth(topbuff,hourglasstop);
       driftSouth(botbuff,hourglassbot);
     }
-    else {
+    if (gravity==-1) {
       driftNorth(botbuff,hourglassbot);
       driftNorth(topbuff,hourglasstop);
     }
+    if (tilt==1) {
+      driftEast(topbuff,hourglasstop);
+      driftEast(botbuff,hourglassbot);
+    }
+    
+    if (tilt==-1) {
+      driftWest(botbuff,hourglassbot);
+      driftWest(topbuff,hourglasstop);
+    }
+    
     showBuf();
     display.display();
     nextframe = millis()+10;
