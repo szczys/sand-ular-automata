@@ -317,10 +317,12 @@ void setup() {
   Wire.endTransmission(true);
   
   //Fill with test sand
-  for (uint8_t i=6; i<46; i++) {
-    for (uint8_t j=24; j<39; j++) {
+  uint16_t graincount = 0;
+  for (uint8_t i=8; i<40; i++) {
+    for (uint8_t j=22; j<39; j++) {
       setSand(j,i,1,topbuff);
       setSand(j,i+10,1,botbuff);
+      if (graincount++ == 500) break;
     }
   }
   
