@@ -279,6 +279,25 @@ void driftEast(uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
   }
 }
 
+void bathtubSand(uint16_t x, uint16_t y, int8_t dir, uint8_t framebuffer[BUFSIZE], uint8_t glassbuffer[BUFSIZE]) {
+  if (dir < 0) {
+    while (y>0) {
+      if (getSand(x,y-1,glassbuffer)) return; //We've hit glass
+      if (getSand(x,y-1,framebuffer) == 0) return; //Air above us, let normal rules sort this out
+      moveS(x,y-1,framebuffer);
+      --y;
+    }
+  }
+  else {
+    while (y<(GRAINSDEEP-1)) {
+      if (getSand(x,y+1,glassbuffer)) return; //We've hit glass
+      if (getSand(x,y+1,framebuffer) == 0) return; //Air above us, let normal rules sort this out
+      moveN(x,y+1,framebuffer);
+      ++y;
+    }
+  }
+}
+
 // the setup routine runs once when you press reset:
 void setup() {                
   // initialize the digital pin as an output.
@@ -353,13 +372,15 @@ void loop() {
     //Move one grain between top/bottom if necessary:
     if (gravity==1) {
       if (getSand(32,63,topbuff) && (getSand(32,0,botbuff) == 0)) {
-        setSand(32,63,0,topbuff);
-        setSand(32,0,1,botbuff); 
+        setSand(32,63,0,topbuff); //Erase grain
+        bathtubSand(32,63,-1,topbuff,hourglasstop); //Drop all grains above this to simulate bathtub effect
+        setSand(32,0,1,botbuff); //Spawn grain in otherside of bottleneck
       }
     }
     if (gravity==-1) {
       if (getSand(32,0,botbuff) && (getSand(32,63,topbuff) == 0)) {
         setSand(32,0,0,botbuff);
+        bathtubSand(32,0,1,botbuff,hourglassbot);
         setSand(32,63,1,topbuff); 
       }
     }
