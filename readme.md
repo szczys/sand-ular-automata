@@ -1,6 +1,7 @@
 # Sand-ular-automata
 
-Just getting started
+Ingredients: ESP32 breakout, SSD1105 OLED (128x64), MPU-6050 IUM, Double AA battery pack
+Tricks: Simulates sand using cellular automata (6 simple rules)
 
 ## Converting images
 
